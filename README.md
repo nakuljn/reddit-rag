@@ -296,24 +296,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Search**: <100ms for typical queries
 - **RAG**: 2-5 seconds depending on context length and model
 
-## 🔮 Roadmap
-
-- [ ] Web UI using Streamlit
-- [ ] Support for multiple LLM providers
-- [ ] Real-time ingestion with webhooks
-- [ ] Advanced filtering and search options
-- [ ] User authentication and rate limiting
-- [ ] Docker containerization
-- [ ] Kubernetes deployment guides
-
-## 📞 Support
-
-If you encounter any issues or have questions:
-
-1. Check the [troubleshooting section](#-troubleshooting)
-2. Review the [API documentation](http://localhost:8000/docs)
-3. Open an issue on GitHub
-
----
 
 **Built with ❤️ using FastAPI, ChromaDB, PRAW, and OpenAI** 
