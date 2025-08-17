@@ -22,12 +22,15 @@ if submitted and user_query.strip():
                 data = response.json()
                 st.success(data["answer"])
                 st.markdown("---")
-                st.markdown(f"**Sources ({data['total_sources']}):**")
-                for src in data["sources"]:
-                    url = src.get("url")
-                    subreddit = src.get("subreddit")
-                    score = src.get("score")
-                    st.markdown(f"- [{subreddit}]({url}) (score: {score})")
+                if data['total_sources'] > 0:
+                    st.markdown(f"**Sources ({data['total_sources']}):**")
+                    for i, src in enumerate(data["sources"], 1):
+                        url = src.get("url")
+                        subreddit = src.get("subreddit")
+                        score = src.get("score")
+                        # Extract post ID from URL for cleaner display
+                        post_id = src.get("id", "")
+                        st.markdown(f"{i}. [r/{subreddit} discussion]({url}) (score: {score})")
             else:
                 st.error(f"Error: {response.json().get('detail', 'Unknown error')}")
         except Exception as e:

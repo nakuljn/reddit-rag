@@ -96,6 +96,9 @@ def structure_post_with_comments(post, comments):
             combined_text += "Post: [No text content]\n\n"
         for i, comment in enumerate(comments, 1):
             combined_text += f"Top Comment {i}: {comment}\n\n"
+        # Create the actual Reddit post URL
+        reddit_url = f"https://reddit.com/r/{post.subreddit}/comments/{post.id}/"
+        
         doc = {
             "id": f"{post.id}",
             "text": combined_text.strip(),
@@ -104,7 +107,9 @@ def structure_post_with_comments(post, comments):
                 "post_id": str(post.id),
                 "score": int(post.score),
                 "created_utc": int(post.created_utc),
-                "url": str(post.url),
+                "url": reddit_url,
+                "title": str(post.title),
+                "media_url": str(post.url) if post.url != reddit_url else None,
             },
         }
         return doc

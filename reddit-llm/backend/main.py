@@ -56,18 +56,19 @@ async def generate_answer_with_context(query: str, top_k: int = 5) -> QueryRespo
         
         # Step 2: Generate answer using LLM
         llm_service = LLMService()
-        answer = llm_service.generate_response(query, docs)
+        answer, used_doc_ids = llm_service.generate_response(query, docs)
         
-        # Step 3: Extract sources for attribution
+        # Step 3: Extract sources for attribution (only relevant ones)
         sources = []
         for doc in docs:
-            metadata = doc.get("metadata", {})
-            sources.append(Source(
-                id=doc["id"],
-                subreddit=metadata.get("subreddit"),
-                url=metadata.get("url"),
-                score=metadata.get("score")
-            ))
+            if doc["id"] in used_doc_ids:
+                metadata = doc.get("metadata", {})
+                sources.append(Source(
+                    id=doc["id"],
+                    subreddit=metadata.get("subreddit"),
+                    url=metadata.get("url"),
+                    score=metadata.get("score")
+                ))
         
         return QueryResponse(
             answer=answer,
