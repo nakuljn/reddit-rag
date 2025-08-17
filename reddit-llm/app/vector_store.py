@@ -1,6 +1,7 @@
 from chromadb import Client
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
+
 import os
 
 CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma_db")
@@ -9,16 +10,24 @@ COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "reddit_docs")
 
 def get_chroma_client(persist_directory=CHROMA_DB_DIR):
     """Initialize and return a ChromaDB client."""
-    return Client(Settings(persist_directory=persist_directory))
+    abs_path = os.path.abspath(persist_directory)
+    print(f"[ChromaDB] Using persist_directory: {abs_path}")
+    os.makedirs(abs_path, exist_ok=True)
+    settings = Settings(persist_directory=abs_path, is_persistent=True)
+    return Client(settings)
 
 
 def get_or_create_collection(client=None, name=COLLECTION_NAME):
-    """Get or create a ChromaDB collection for Reddit documents."""
+    """Get or create a ChromaDB collection for Reddit documents, using default embeddings."""
     if client is None:
         client = get_chroma_client()
+        
+    # Use default embedding function (sentence-transformers) - no API key required
+    embedding_fn = embedding_functions.DefaultEmbeddingFunction()
+
     if name in [c.name for c in client.list_collections()]:
-        return client.get_collection(name)
-    return client.create_collection(name)
+        return client.get_collection(name, embedding_function=embedding_fn)
+    return client.create_collection(name, embedding_function=embedding_fn)
 
 
 def add_documents_to_collection(docs, collection=None):
