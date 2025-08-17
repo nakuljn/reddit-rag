@@ -4,7 +4,7 @@ from chromadb.utils import embedding_functions
 
 import os
 
-CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./data/chroma_db")
+CHROMA_DB_DIR = os.getenv("CHROMA_DB_DIR", "./chroma_db")
 COLLECTION_NAME = os.getenv("CHROMA_COLLECTION", "reddit_docs")
 
 

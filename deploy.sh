@@ -2,7 +2,7 @@
 
 # Simple deploy script for Reddit RAG to Hugging Face Spaces
 
-TARGET_DIR="../Raggle4Reddit"
+TARGET_DIR="../ask-reddit"
 
 echo "🚀 Deploying to Hugging Face Spaces..."
 
@@ -18,12 +18,13 @@ find . -maxdepth 1 ! -name '.' ! -name '..' ! -name '.git' -exec rm -rf {} + 2>/
 
 cd -
 
-# Copy all necessary files
-cp -r reddit-llm "$TARGET_DIR/"
+# Copy all necessary files to root for Hugging Face Spaces (excluding tests)
+cp -r app "$TARGET_DIR/"
+cp app.py "$TARGET_DIR/"
 cp requirements.txt "$TARGET_DIR/"
 cp Dockerfile "$TARGET_DIR/"
 cp README.md "$TARGET_DIR/"
-cp .gitignore "$TARGET_DIR/"
+cp .gitignore "$TARGET_DIR/" 2>/dev/null || true
 
 echo "✅ Files copied to $TARGET_DIR"
 echo "Next steps:"

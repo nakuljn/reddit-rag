@@ -13,26 +13,15 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt
 
-# Copy the entire reddit-llm application
-COPY reddit-llm/ ./reddit-llm/
+# Copy the application files
+COPY app/ ./app/
+COPY app.py ./
 
-# Create startup script that runs both backend and frontend
-RUN echo '#!/bin/bash\n\
-# Start FastAPI backend in background\n\
-cd /app/reddit-llm && python -m app.main &\n\
-\n\
-# Wait for backend to start\n\
-sleep 5\n\
-\n\
-# Start Streamlit frontend\n\
-cd /app/reddit-llm && streamlit run ui.py --server.port=8501 --server.address=0.0.0.0\n\
-' > /app/start.sh && chmod +x /app/start.sh
+# Expose port 7860 for Hugging Face Spaces
+EXPOSE 7860
 
-# Expose Streamlit port
-EXPOSE 8501
+# Health check for Gradio
+HEALTHCHECK CMD curl --fail http://localhost:7860/ || exit 1
 
-# Health check for Streamlit
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
-
-# Start both services
-ENTRYPOINT ["/app/start.sh"]
+# Start the application
+CMD ["python", "app.py"]
