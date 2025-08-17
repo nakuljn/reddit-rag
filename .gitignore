@@ -55,3 +55,6 @@ data/chroma_db/
 .coverage
 htmlcov/
 .pytest_cache/ 
+
+#Claude
+CLAUDE.md
