@@ -1,13 +1,13 @@
 import os
-from openai import OpenAI
+from anthropic import Anthropic
 from typing import List, Dict, Any
 
 class LLMService:
-    def __init__(self, api_key: str = None, model: str = "gpt-3.5-turbo"):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+    def __init__(self, api_key: str = None, model: str = "claude-3-haiku-20240307"):
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
-            raise ValueError("OpenAI API key not found in environment variables")
-        self.client = OpenAI(api_key=self.api_key)
+            raise ValueError("Anthropic API key not found in environment variables")
+        self.client = Anthropic(api_key=self.api_key)
         self.model = model
     
     def generate_response(self, query: str, context_docs: List[Dict[str, Any]]) -> str:
@@ -25,19 +25,19 @@ class LLMService:
             # Create prompt
             prompt = self._create_prompt(query, context_text)
             
-            # Call OpenAI API
-            response = self.client.chat.completions.create(
+            # Call Anthropic API
+            response = self.client.messages.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
                 max_tokens=500,
-                temperature=0.7
+                temperature=0.7,
+                messages=[{"role": "user", "content": prompt}]
             )
             
             # Handle empty response
-            if not response.choices or not response.choices[0].message.content:
+            if not response.content or not response.content[0].text:
                 return "Sorry, I couldn't generate a response. Please try again."
             
-            return response.choices[0].message.content
+            return response.content[0].text
             
         except Exception as e:
             print(f"LLM API call failed: {str(e)}")
@@ -53,10 +53,19 @@ class LLMService:
     
     def _create_prompt(self, query: str, context: str) -> str:
         """Create the prompt for the LLM with query and context."""
-        return f"""Based on the following Reddit discussions:
+        return f"""You are a helpful assistant that answers questions based on Reddit discussions. Your goal is to provide useful, friendly responses.
 
+Reddit discussions:
 {context}
 
-Answer this question: {query}
+User question: {query}
 
-Provide a helpful answer using information from the discussions above. If the discussions don't contain relevant information, say so clearly."""
+Instructions:
+- Extract and present any relevant information from the Reddit discussions
+- Be conversational and helpful in tone
+- If you find specific recommendations, present them clearly with any available details
+- Don't start with negative statements about what the discussions don't contain
+- If limited information is available, acknowledge it briefly but focus on what you can provide
+- Format recommendations in a clear, easy-to-read way
+
+Answer:"""
