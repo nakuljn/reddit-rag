@@ -19,7 +19,7 @@ COPY reddit-llm/ ./reddit-llm/
 # Create startup script that runs both backend and frontend
 RUN echo '#!/bin/bash\n\
 # Start FastAPI backend in background\n\
-cd /app/reddit-llm && python -m backend.main &\n\
+cd /app/reddit-llm && python -m app.main &\n\
 \n\
 # Wait for backend to start\n\
 sleep 5\n\

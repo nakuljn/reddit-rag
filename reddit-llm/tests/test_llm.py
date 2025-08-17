@@ -1,6 +1,6 @@
 import pytest
 from unittest import mock
-from app.llm import LLMService
+from backend.llm import LLMService
 
 def test_llm_service_initialization():
     with mock.patch.dict('os.environ', {'OPENAI_API_KEY': 'test_key'}):
