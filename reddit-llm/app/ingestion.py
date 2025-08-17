@@ -133,22 +133,50 @@ def ingest_subreddit(subreddit_name, post_limit=100, comment_limit=3, min_score=
         print(f"Failed to ingest subreddit r/{subreddit_name}: {str(e)}")
         return []
 
+def ingest_multiple_subreddits(subreddits, post_limit=10, comment_limit=2, min_score=5, time_filter="week"):
+    """Ingest multiple subreddits and return combined documents."""
+    all_docs = []
+    for subreddit in subreddits:
+        print(f"\n--- Ingesting r/{subreddit} ---")
+        docs = ingest_subreddit(subreddit, post_limit, comment_limit, min_score, time_filter)
+        print(f"Fetched {len(docs)} documents from r/{subreddit}")
+        all_docs.extend(docs)
+    return all_docs
+
 def main():
     import sys
     from app.vector_store import add_documents_to_collection
+    
     if len(sys.argv) < 2:
-        print("Usage: python -m app.ingestion <subreddit> [post_limit] [comment_limit] [min_score] [time_filter]")
+        print("Usage:")
+        print("  Single subreddit: python -m app.ingestion <subreddit> [post_limit] [comment_limit] [min_score] [time_filter]")
+        print("  Multiple subreddits: python -m app.ingestion <subreddit1,subreddit2,subreddit3> [post_limit] [comment_limit] [min_score] [time_filter]")
+        print("\nExamples:")
+        print("  python -m app.ingestion python 10 2 5 week")
+        print("  python -m app.ingestion python,MachineLearning,datascience 5 2 10 month")
+        print("  python -m app.ingestion askreddit,todayilearned,explainlikeimfive 20 3 50 week")
         sys.exit(1)
-    subreddit = sys.argv[1]
-    post_limit = int(sys.argv[2]) if len(sys.argv) > 2 else 100
-    comment_limit = int(sys.argv[3]) if len(sys.argv) > 3 else 3
-    min_score = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+    
+    subreddit_input = sys.argv[1]
+    post_limit = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+    comment_limit = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+    min_score = int(sys.argv[4]) if len(sys.argv) > 4 else 5
     time_filter = sys.argv[5] if len(sys.argv) > 5 else "week"
-    print(f"Ingesting r/{subreddit} (posts={post_limit}, comments={comment_limit}, min_score={min_score}, time_filter={time_filter})...")
-    docs = ingest_subreddit(subreddit, post_limit, comment_limit, min_score, time_filter)
-    print(f"Fetched {len(docs)} documents. Storing in ChromaDB...")
+    
+    if ',' in subreddit_input:
+        subreddits = [s.strip() for s in subreddit_input.split(',')]
+        print(f"Ingesting {len(subreddits)} subreddits: {', '.join([f'r/{s}' for s in subreddits])}")
+        print(f"Parameters: posts={post_limit}, comments={comment_limit}, min_score={min_score}, time_filter={time_filter}")
+        docs = ingest_multiple_subreddits(subreddits, post_limit, comment_limit, min_score, time_filter)
+    else:
+        subreddit = subreddit_input
+        print(f"Ingesting r/{subreddit} (posts={post_limit}, comments={comment_limit}, min_score={min_score}, time_filter={time_filter})...")
+        docs = ingest_subreddit(subreddit, post_limit, comment_limit, min_score, time_filter)
+    
+    print(f"\nTotal documents fetched: {len(docs)}")
+    print("Storing in ChromaDB...")
     added = add_documents_to_collection(docs)
-    print(f"Stored {added} documents in ChromaDB.")
+    print(f"✅ Stored {added} documents in ChromaDB.")
 
 if __name__ == "__main__":
     main()
