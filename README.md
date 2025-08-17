@@ -1,16 +1,26 @@
+---
+title: Reddit RAG System
+emoji: 🔍
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+license: mit
+---
+
 # Reddit RAG (Retrieval-Augmented Generation) System
 
-A powerful Retrieval-Augmented Generation system that ingests Reddit content, stores it in a vector database, and provides intelligent Q&A capabilities using LLMs.
+An intelligent Q&A system that answers questions using Reddit discussions powered by Anthropic Claude.
 
 ## 🚀 Features
 
-- **Reddit Content Ingestion**: Automatically fetch and process posts and comments from any subreddit
+- 🔍 **Smart Query Processing**: Automatically enhances user queries for better search results
+- 🧠 **Claude Integration**: Uses Anthropic Claude for intelligent responses  
+- 📚 **Reddit Data**: Searches through ingested Reddit discussions
+- 🎯 **Relevant Sources**: Shows only the Reddit threads actually used in answers
 - **Vector Storage**: Store content in ChromaDB with semantic embeddings for efficient retrieval
-- **Intelligent Search**: Semantic search through ingested content with metadata filtering
-- **LLM Integration**: OpenAI-powered Q&A with context from Reddit content
 - **RESTful API**: FastAPI-based endpoints for search and question answering
 - **Robust Error Handling**: Graceful handling of API failures, network issues, and edge cases
-- **Comprehensive Testing**: Full test coverage with mocked external dependencies
 
 ## 🏗️ Architecture
 
@@ -70,8 +80,8 @@ REDDIT_CLIENT_ID=your_reddit_client_id
 REDDIT_CLIENT_SECRET=your_reddit_client_secret
 REDDIT_USER_AGENT=reddit-rag-bot/1.0
 
-# OpenAI API Key (Required for LLM features)
-OPENAI_API_KEY=your_openai_api_key
+# Anthropic API Key (Required for LLM features)
+ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # ChromaDB Configuration (Optional)
 CHROMA_DB_DIR=./data/chroma_db
