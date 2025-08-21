@@ -1,139 +1,184 @@
 import gradio as gr
-import requests
 import os
-import subprocess
-import threading
-import time
+from dotenv import load_dotenv
+from app.main import generate_answer_with_context
 
-# Configure API base URL
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+load_dotenv()
 
-def start_backend():
-    """Start FastAPI backend in background"""
-    print("🚀 Starting FastAPI backend...")
-    subprocess.Popen(["python", "-m", "app.main"])
-    time.sleep(10)  # Wait for backend to start
-    print("✅ Backend started")
-
-def respond(message, history, top_k):
-    """Send question to FastAPI backend and return response"""
+async def ask_question_direct(message, top_k, model):
     if not message.strip():
-        return history, ""
+        return "Please enter a question."
     
     try:
-        response = requests.post(
-            f"{API_BASE_URL}/ask",
-            json={"query": message, "top_k": int(top_k)},
-            timeout=30
-        )
-        if response.status_code == 200:
-            data = response.json()
-            answer = data["answer"]
-            
-            # Format sources
-            if data.get('total_sources', 0) > 0:
-                answer += f"\n\n**Sources ({data['total_sources']}):**\n"
-                for i, src in enumerate(data["sources"], 1):
-                    url = src.get("url", "")
-                    subreddit = src.get("subreddit", "")
-                    score = src.get("score", 0)
-                    answer += f"{i}. [r/{subreddit}]({url}) (score: {score})\n"
-            
-            # Add to chat history
-            history.append([message, answer])
-            return history, ""
-        else:
-            error_msg = f"Error: {response.json().get('detail', 'Unknown error')}"
-            history.append([message, error_msg])
-            return history, ""
+        result = await generate_answer_with_context(message, int(top_k), model)
+        answer = result.answer
+        
+        if result.total_sources > 0:
+            answer += f"\n\n**Sources ({result.total_sources}):**\n"
+            for i, src in enumerate(result.sources, 1):
+                answer += f"{i}. [r/{src.subreddit}]({src.url}) (score: {src.score})\n"
+        
+        return answer
     except Exception as e:
-        error_msg = f"Request failed: {str(e)}"
-        history.append([message, error_msg])
-        return history, ""
+        return f"Sorry, I encountered an error: {str(e)}. Please try again."
 
-# Create ChatGPT-style conversational interface
-with gr.Blocks(title="Ask Reddit") as demo:
-    gr.Markdown("# 🤖 Ask Reddit")
-    gr.Markdown("*Have a conversation powered by Reddit discussions and AI*")
+# Minimal CSS for dark theme
+css = """
+.gradio-container {
+    background: #0f1419 !important;
+    color: #ffffff !important;
+}
+.dark {
+    background: #0f1419 !important;
+}
+footer {
+    display: none !important;
+}
+"""
+
+def handle_message(user_message, chat_history, state):
+    """Handle user message and get bot response"""
+    if not user_message.strip():
+        return chat_history, state, ""
+    
+    # Add user message to chat
+    chat_history.append([user_message, None])
+    
+    # Get settings from state
+    top_k_val = state.get("top_k", 5)
+    model_val = state.get("model", "grok")
+    
+    # Get bot response
+    import asyncio
+    try:
+        bot_response = asyncio.run(ask_question_direct(user_message, top_k_val, model_val))
+        chat_history[-1][1] = bot_response
+    except Exception as e:
+        chat_history[-1][1] = f"Sorry, I encountered an error: {str(e)}"
+    
+    return chat_history, state, ""
+
+def update_settings(model, sources, state):
+    """Update settings in state"""
+    state["model"] = model
+    state["top_k"] = sources
+    return state
+
+def clear_chat():
+    """Clear the chat history"""
+    return []
+
+def set_prompt(prompt_text):
+    """Set a suggested prompt"""
+    return prompt_text
+
+# Create the Gradio interface using Blocks
+with gr.Blocks(title="Reddit RAG Assistant", theme=gr.themes.Soft(primary_hue="blue"), css=css) as demo:
+    
+    # Initialize state
+    state = gr.State({"model": "grok", "top_k": 5})
+    
+    gr.Markdown("# 🤖 Reddit Knowledge Assistant")
+    gr.Markdown("Ask me anything about Reddit communities, trends, and discussions")
     
     with gr.Row():
-        with gr.Column(scale=4):
-            # Chat interface
-            chatbot = gr.Chatbot(
-                label="Chat",
-                height=500,
-                show_label=False
+        # Left sidebar
+        with gr.Column(scale=1):
+            gr.Markdown("### ➕ NEW CHAT")
+            clear_btn = gr.Button("Clear Chat", variant="secondary", size="sm")
+            
+            gr.Markdown("### ▼ TRY ASKING:")
+            
+            prompt1 = gr.Button("How does Reddit work?", size="sm")
+            prompt2 = gr.Button("Popular subreddits", size="sm") 
+            prompt3 = gr.Button("Building karma tips", size="sm")
+            prompt4 = gr.Button("Trending discussions", size="sm")
+            
+            gr.Markdown("### ⚙️ SETTINGS")
+            
+            model_choice = gr.Radio(
+                choices=["claude", "grok"],
+                value="grok",
+                label="AI Model"
             )
             
-            with gr.Row():
-                msg = gr.Textbox(
-                    placeholder="Type your message here...",
-                    show_label=False,
-                    scale=4
-                )
-                send_btn = gr.Button("Send", variant="primary", scale=1)
-        
-        with gr.Column(scale=1):
-            # Sidebar with settings
-            gr.Markdown("### Settings")
             top_k = gr.Slider(
                 minimum=1,
                 maximum=10,
                 value=5,
                 step=1,
-                label="Sources"
+                label="Number of Sources"
             )
-            clear_btn = gr.Button("Clear Chat", variant="secondary")
+        
+        # Main chat area
+        with gr.Column(scale=3):
+            # Chat interface
+            chatbot = gr.Chatbot(
+                height=600,
+                show_label=False,
+                bubble_full_width=False
+            )
+            
+            # Input area
+            with gr.Row():
+                user_input = gr.Textbox(
+                    placeholder="Ask about Reddit communities, trending topics, or specific discussions...",
+                    show_label=False,
+                    scale=4,
+                    lines=1,
+                    max_lines=3
+                )
+                send_btn = gr.Button("🚀", scale=0, variant="primary")
     
     # Event handlers
-    def user_message(message, history):
-        return "", history + [[message, None]]
     
-    def bot_response(history, top_k_val):
-        if history and history[-1][1] is None:
-            message = history[-1][0]
-            try:
-                response = requests.post(
-                    f"{API_BASE_URL}/ask",
-                    json={"query": message, "top_k": int(top_k_val)},
-                    timeout=30
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    answer = data["answer"]
-                    
-                    if data.get('total_sources', 0) > 0:
-                        answer += f"\n\n**Sources ({data['total_sources']}):**\n"
-                        for i, src in enumerate(data["sources"], 1):
-                            url = src.get("url", "")
-                            subreddit = src.get("subreddit", "")
-                            score = src.get("score", 0)
-                            answer += f"{i}. [r/{subreddit}]({url}) (score: {score})\n"
-                    
-                    history[-1][1] = answer
-                else:
-                    history[-1][1] = f"Error: {response.json().get('detail', 'Unknown error')}"
-            except Exception as e:
-                history[-1][1] = f"Request failed: {str(e)}"
-        
-        return history
+    # Handle message submission
+    user_input.submit(
+        handle_message,
+        inputs=[user_input, chatbot, state],
+        outputs=[chatbot, state, user_input]
+    )
     
-    # Wire up the events
-    msg.submit(user_message, [msg, chatbot], [msg, chatbot]).then(
-        bot_response, [chatbot, top_k], chatbot
+    send_btn.click(
+        handle_message,
+        inputs=[user_input, chatbot, state],
+        outputs=[chatbot, state, user_input]
     )
-    send_btn.click(user_message, [msg, chatbot], [msg, chatbot]).then(
-        bot_response, [chatbot, top_k], chatbot
+    
+    # Handle settings changes
+    model_choice.change(
+        update_settings,
+        inputs=[model_choice, top_k, state],
+        outputs=[state]
     )
-    clear_btn.click(lambda: [], None, chatbot)
+    
+    top_k.change(
+        update_settings,
+        inputs=[model_choice, top_k, state],
+        outputs=[state]
+    )
+    
+    # Clear chat
+    clear_btn.click(clear_chat, outputs=[chatbot])
+    
+    # Suggested prompts
+    prompt1.click(set_prompt, outputs=[user_input]).then(
+        lambda: "How does Reddit work?", outputs=[user_input]
+    )
+    prompt2.click(set_prompt, outputs=[user_input]).then(
+        lambda: "What are the most popular subreddits?", outputs=[user_input]
+    )
+    prompt3.click(set_prompt, outputs=[user_input]).then(
+        lambda: "How can I build karma on Reddit?", outputs=[user_input]
+    )
+    prompt4.click(set_prompt, outputs=[user_input]).then(
+        lambda: "What are the current trending discussions?", outputs=[user_input]
+    )
 
 if __name__ == "__main__":
-    # Start backend in a separate thread
-    threading.Thread(target=start_backend, daemon=True).start()
-    
-    # Launch Gradio frontend
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
-        share=False
+        share=False,
+        show_error=True
     )

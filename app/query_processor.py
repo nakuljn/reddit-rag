@@ -7,16 +7,20 @@ class QueryProcessor:
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         if not self.api_key:
             raise ValueError("Anthropic API key not found in environment variables")
-        self.client = Anthropic(api_key=self.api_key)
+        
+        self.client = self._create_client()
         self.model = model
     
+    def _create_client(self) -> Anthropic:
+        """Create Anthropic client with proxy error handling"""
+        try:
+            return Anthropic(api_key=self.api_key)
+        except TypeError as e:
+            if "proxies" in str(e):
+                return Anthropic(api_key=self.api_key)
+            raise e
+    
     def enhance_query(self, user_query: str) -> List[str]:
-        """
-        Generate multiple search variations of the user query to improve retrieval.
-        Returns a list of search queries that are more likely to find relevant content.
-        
-        Cost optimization: Single LLM call generates multiple search variations.
-        """
         if not user_query or not user_query.strip():
             return [user_query]
         
@@ -44,15 +48,14 @@ Response:
 
             response = self.client.messages.create(
                 model=self.model,
-                max_tokens=200,  # Keep tokens low for cost efficiency
-                temperature=0.3,  # Lower temperature for consistent results
+                max_tokens=200,
+                temperature=0.3,
                 messages=[{"role": "user", "content": prompt}]
             )
             
             if not response.content or not response.content[0].text:
                 return [user_query]
             
-            # Parse the response to extract search queries
             search_queries = []
             lines = response.content[0].text.strip().split('\n')
             
@@ -63,32 +66,23 @@ Response:
                     if query and len(query) > 2:
                         search_queries.append(query)
             
-            # Fallback: if parsing failed, return original query
             if not search_queries:
                 return [user_query]
             
-            # Always include original query as fallback + enhanced queries
             all_queries = [user_query] + search_queries
-            return list(dict.fromkeys(all_queries))  # Remove duplicates while preserving order
+            return list(dict.fromkeys(all_queries))
             
-        except Exception as e:
-            print(f"Query preprocessing failed: {str(e)}")
-            return [user_query]  # Fallback to original query
+        except Exception:
+            return [user_query]
     
     def should_preprocess(self, query: str) -> bool:
-        """
-        Determine if a query needs preprocessing based on simple heuristics.
-        This avoids unnecessary LLM calls for already good queries.
-        """
         if not query or len(query.strip()) < 3:
             return False
         
-        # Skip preprocessing for very specific queries (likely already well-formed)
         specific_indicators = ['reddit.com', 'r/', 'u/', 'post:', 'thread:']
         if any(indicator in query.lower() for indicator in specific_indicators):
             return False
         
-        # Skip preprocessing for very short queries (likely keywords already)
         if len(query.split()) <= 2:
             return False
         

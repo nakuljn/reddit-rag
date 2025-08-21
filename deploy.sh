@@ -26,6 +26,15 @@ cp Dockerfile "$TARGET_DIR/"
 cp README.md "$TARGET_DIR/"
 cp .gitignore "$TARGET_DIR/" 2>/dev/null || true
 
+# Copy ChromaDB database if it exists
+if [ -d "chroma_db" ]; then
+    echo "📊 Copying ChromaDB database..."
+    cp -r chroma_db "$TARGET_DIR/"
+    echo "✅ ChromaDB copied to deployment"
+else
+    echo "⚠️  No ChromaDB found - app will start with empty database"
+fi
+
 echo "✅ Files copied to $TARGET_DIR"
 echo "Next steps:"
 echo "1. cd $TARGET_DIR"

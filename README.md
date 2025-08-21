@@ -1,19 +1,21 @@
 ---
-title: Reddit RAG System
-emoji: 🔍
+title: Ask Reddit
+emoji: 🤖
 colorFrom: blue
 colorTo: purple
-sdk: docker
+sdk: gradio
+app_file: app.py
 pinned: false
 license: mit
 ---
 
-# Reddit RAG (Retrieval-Augmented Generation) System
+# Ask Reddit - AI-Powered Q&A
 
-An intelligent Q&A system that answers questions using Reddit discussions powered by Anthropic Claude.
+A conversational AI system that answers questions using Reddit discussions powered by Anthropic Claude and Gradio.
 
 ## 🚀 Features
 
+- 💬 **Chat Interface**: ChatGPT-style conversational UI with Gradio
 - 🔍 **Smart Query Processing**: Automatically enhances user queries for better search results
 - 🧠 **Claude Integration**: Uses Anthropic Claude for intelligent responses  
 - 📚 **Reddit Data**: Searches through ingested Reddit discussions
@@ -25,30 +27,37 @@ An intelligent Q&A system that answers questions using Reddit discussions powere
 ## 🏗️ Architecture
 
 ```
+Data Ingestion (One-time):
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Reddit API    │───▶│   Ingestion     │───▶│   ChromaDB      │
 │   (PRAW)        │    │   Pipeline      │    │   Vector Store  │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │   FastAPI       │    │   OpenAI        │
-                       │   REST API      │    │   LLM Service   │
-                       └─────────────────┘    └─────────────────┘
+
+Query Processing Flow:
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Gradio UI     │───▶│   Claude LLM    │───▶│   Query         │
+│   User Input    │    │   Expand Query  │    │   Enhancement   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                                                        │
+                                                        ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Final Result  │◄───│   Claude LLM    │◄───│   ChromaDB      │
+│   to User       │    │   Generalize    │    │   Fetch Data    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
 ## 📋 Prerequisites
 
 - Python 3.11+
 - Reddit API credentials
-- OpenAI API key (optional, for LLM features)
+- Anthropic API key (required for LLM features)
 
 ## 🛠️ Installation
 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/nakuljn/reddit-rag.git
-   cd reddit-rag/reddit-llm
+   cd reddit-rag
    ```
 
 2. **Create and activate virtual environment**
@@ -72,7 +81,7 @@ An intelligent Q&A system that answers questions using Reddit discussions powere
 
 ### Environment Variables
 
-Create a `.env` file in the `reddit-llm` directory with the following variables:
+Create a `.env` file in the root directory with the following variables:
 
 ```env
 # Reddit API Credentials (Required)
@@ -84,7 +93,7 @@ REDDIT_USER_AGENT=reddit-rag-bot/1.0
 ANTHROPIC_API_KEY=your_anthropic_api_key
 
 # ChromaDB Configuration (Optional)
-CHROMA_DB_DIR=./data/chroma_db
+CHROMA_DB_DIR=./chroma_db
 CHROMA_COLLECTION=reddit_docs
 ```
 
@@ -98,9 +107,19 @@ CHROMA_COLLECTION=reddit_docs
 
 ## 🚀 Usage
 
-### 1. Ingest Reddit Content
+### 1. Run the Application
 
-Ingest posts and comments from a subreddit:
+Start the full application (backend + chat interface):
+
+```bash
+python app.py
+```
+
+This will start both the FastAPI backend and Gradio chat interface. Access the chat at `http://localhost:7860`.
+
+### 2. Ingest Reddit Content
+
+In a separate terminal, ingest posts and comments from a subreddit:
 
 ```bash
 python -m app.ingestion <subreddit> [post_limit] [comment_limit] [min_score] [time_filter]
@@ -125,7 +144,9 @@ python -m app.ingestion explainlikeimfive 100 2 15 month
 - `min_score`: Minimum upvotes for a post (default: 10)
 - `time_filter`: Time period (`day`, `week`, `month`, `year`, `all`)
 
-### 2. Start the API Server
+### 3. Alternative: Run API Server Only
+
+If you want to run just the FastAPI backend:
 
 ```bash
 python -m app.main
@@ -133,7 +154,7 @@ python -m app.main
 
 The API will be available at `http://localhost:8000`
 
-### 3. Use the API
+### 4. Use the API
 
 #### Search for Similar Content
 ```bash
@@ -149,7 +170,7 @@ curl -X POST "http://localhost:8000/ask" \
      -d '{"question": "What programming advice do Redditors give to beginners?"}'
 ```
 
-### 4. API Documentation
+### 5. API Documentation
 
 Once the server is running, visit:
 - **Interactive API docs**: http://localhost:8000/docs
@@ -174,30 +195,27 @@ pytest tests/test_ingestion.py
 
 ```
 reddit-rag/
-├── reddit-llm/
-│   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py          # FastAPI application
-│   │   ├── ingestion.py     # Reddit content ingestion
-│   │   ├── search.py        # Vector search functionality
-│   │   ├── llm.py          # LLM integration
-│   │   ├── models.py       # Pydantic models
-│   │   └── vector_store.py # ChromaDB operations
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   ├── test_ingestion.py
-│   │   ├── test_search.py
-│   │   ├── test_llm.py
-│   │   └── test_main.py
-│   ├── data/
-│   │   └── chroma_db/      # Vector database storage
-│   ├── requirements.txt
-│   ├── .env.example
-│   └── .gitignore
-├── Documents/
-│   ├── PROGRESS.md         # Project progress tracking
-│   ├── CODE_PRACTICES.md   # Coding standards
-│   └── reddit-llm-hld.md   # High-level design
+├── app/
+│   ├── __init__.py
+│   ├── main.py          # FastAPI application
+│   ├── ingestion.py     # Reddit content ingestion
+│   ├── search.py        # Vector search functionality
+│   ├── llm.py          # LLM integration
+│   ├── models.py       # Pydantic models
+│   └── vector_store.py # ChromaDB operations
+├── tests/
+│   ├── __init__.py
+│   ├── test_ingestion.py
+│   ├── test_search.py
+│   ├── test_llm.py
+│   └── test_main.py
+├── chroma_db/          # Vector database storage
+├── app.py              # Gradio chat interface + backend launcher
+├── requirements.txt
+├── Dockerfile
+├── .env
+├── .gitignore
+├── CLAUDE.md
 └── README.md
 ```
 
@@ -293,12 +311,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Verify your Reddit API credentials have proper permissions
 
 **"ChromaDB errors"**
-- Ensure the `data/chroma_db` directory exists and is writable
+- Ensure the `chroma_db` directory exists and is writable
 - Check if you have sufficient disk space
 
-**"OpenAI API errors"**
-- Verify your OpenAI API key is valid and has sufficient credits
-- Check if the API key has access to the required models
+**"Anthropic API errors"**
+- Verify your Anthropic API key is valid and has sufficient credits
+- Check if the API key has access to Claude models
 
 ## 📊 Performance
 
@@ -307,4 +325,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **RAG**: 2-5 seconds depending on context length and model
 
 
-**Built with ❤️ using FastAPI, ChromaDB, PRAW, and OpenAI** 
+**Built with ❤️ using FastAPI, ChromaDB, PRAW, Anthropic Claude, and Gradio** 

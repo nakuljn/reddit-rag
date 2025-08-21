@@ -15,7 +15,6 @@ def read_root():
 
 @app.post("/search", response_model=SearchResponse)
 async def search_documents(request: SearchRequest):
-    """Search for similar documents using vector similarity."""
     try:
         docs = search_similar_documents(request.query, top_k=request.top_k)
         results = [
@@ -35,30 +34,21 @@ async def search_documents(request: SearchRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
-async def generate_answer_with_context(query: str, top_k: int = 5) -> QueryResponse:
-    """Generate an answer using enhanced RAG: query preprocessing + search + LLM generation."""
+async def generate_answer_with_context(query: str, top_k: int = 5, model: str = "claude") -> QueryResponse:
     try:
-        # Step 1: Query preprocessing for better search (cost-optimized)
-        query_processor = QueryProcessor()
+        query_processor = None
+        if model and model.startswith("claude"):
+            query_processor = QueryProcessor()
         
-        if query_processor.should_preprocess(query):
-            print(f"[Query Preprocessing] Original: {query}")
+        if query_processor and query_processor.should_preprocess(query):
             search_queries = query_processor.enhance_query(query)
-            print(f"[Query Preprocessing] Enhanced queries: {search_queries}")
-            # Use enhanced multi-query search
             docs = search_with_multiple_queries(search_queries, top_k=top_k)
         else:
-            print(f"[Query Preprocessing] Skipped - using original query")
-            # Use original single query search
             docs = search_similar_documents(query, top_k=top_k)
         
-        print(f"[Search] Found {len(docs)} documents")
-        
-        # Step 2: Generate answer using LLM
-        llm_service = LLMService()
+        llm_service = LLMService(model=model)
         answer, used_doc_ids = llm_service.generate_response(query, docs)
         
-        # Step 3: Extract sources for attribution (only relevant ones)
         sources = []
         for doc in docs:
             if doc["id"] in used_doc_ids:
@@ -77,16 +67,24 @@ async def generate_answer_with_context(query: str, top_k: int = 5) -> QueryRespo
             total_sources=len(sources)
         )
     except ValueError as e:
-        # Handle validation errors (e.g., missing API keys)
         raise HTTPException(status_code=400, detail=f"Configuration error: {str(e)}")
     except Exception as e:
-        # Handle other errors (network, API failures, etc.)
         raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
 
 @app.post("/ask", response_model=QueryResponse)
 async def ask_question(request: QueryRequest):
-    """Ask a question and get an answer using Reddit-powered RAG."""
     return await generate_answer_with_context(request.query, request.top_k)
+
+@app.get("/ingest/{subreddit}")
+async def ingest_subreddit(subreddit: str, post_limit: int = 20, comment_limit: int = 2):
+    """Manual endpoint to ingest Reddit data"""
+    try:
+        from app.ingestion import RedditIngester
+        ingester = RedditIngester()
+        result = ingester.ingest_subreddit(subreddit, post_limit=post_limit, comment_limit=comment_limit)
+        return {"status": "success", "message": f"Ingested data from r/{subreddit}", "result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ingestion failed: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
